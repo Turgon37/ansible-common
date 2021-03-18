@@ -1,5 +1,6 @@
 galaxy_info:
-  role_name: turgon37.common
+  namespace: turgon37
+  role_name: common
   author: Pierre GINDRAUD
   description: This role perform common configuration for servers
   license: MIT
