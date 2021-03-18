@@ -1,0 +1,14 @@
+---
+
+common__required_packages_names:
+  - libuser
+
+common__libuser_supported: true
+
+common__packages_names_default:
+  python{{ python__version_major|d(3) }}-pip:
+    state: present
+  python{{ python__version_major|d(3) }}-pycurl:
+    state: present
+  python{{ python__version_major|d(3) }}-selinux:
+    state: present

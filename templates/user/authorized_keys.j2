@@ -1,0 +1,4 @@
+{{ ansible_managed|comment(decoration='# ') }}
+{% for key in _common__user_ssh_authorized_keys %}
+{%   if key.options is defined and key.options %}{{ key.options }} {% endif %}{{ key.type }} {{ key.key }} {{ key.comment|d('') }}
+{% endfor %}

@@ -1,0 +1,11 @@
+---
+
+- name: Configuring users
+  ansible.builtin.include_tasks: types/user.yml
+  vars:
+    common__user: "{{
+        outer_item.value|combine({'name': outer_item.key})
+      }}"
+  loop: '{{ common__users|dict2items }}'
+  loop_control:
+    loop_var: outer_item

@@ -1,0 +1,9 @@
+---
+
+- name: Configure libuser.conf
+  ansible.builtin.template:
+    src: libuser.conf.j2
+    dest: '{{ common__libuser_configuraton_file }}'
+    owner: root
+    mode: 0644
+  when: common__libuser_supported|bool

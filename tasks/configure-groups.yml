@@ -1,0 +1,9 @@
+---
+
+- name: Configure common groups
+  ansible.builtin.group:
+    name: '{{ item.key }}'
+    gid: '{{ item.value.gid|d(omit) }}'
+    system: '{{ item.value.system|d(omit) }}'
+    state: "{{ item.value.state|d('present') }}"
+  loop: '{{ common__groups|dict2items }}'

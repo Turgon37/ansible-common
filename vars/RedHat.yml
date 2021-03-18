@@ -1,0 +1,5 @@
+---
+
+common__packages_names_default:
+  libselinux-python:
+    state: present

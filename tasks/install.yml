@@ -1,0 +1,6 @@
+---
+
+- name: Install required packages
+  ansible.builtin.package:
+    name: '{{ common__required_packages_names }}'
+    state: present

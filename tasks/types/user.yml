@@ -1,0 +1,373 @@
+---
+
+###
+### INIT
+###
+
+- name: Check prerequisites for user
+  ansible.builtin.assert:
+    that:
+      - common__user is defined
+      - common__user.name is match('^[a-zA-Z][a-zA-Z0-9-]+$')
+    msg: >-
+      users__user must be defined with user name
+  tags: ['always']
+
+- name: Fail if home is not a relative path
+  ansible.builtin.fail:
+    msg: Not implemented
+  when: common__users_ssh_config_directory is not search('~')
+  tags: ['always']
+
+- name: "Init some values for user '{{ common__user.name }}'"
+  ansible.builtin.set_fact:
+    _common__user_attributes: '{{ common__users_template|combine(common__user) }}'
+  no_log: true
+  tags: ['always']
+
+- name: "Check attributes for user '{{ common__user.name }}'"
+  ansible.builtin.assert:
+    that:
+      - common__user.state|d('present') in ['present', 'absent']
+    msg: >-
+      users__user must be defined with user name
+  tags: ['always']
+
+- name: "Compute some values for user '{{ common__user.name }}'"
+  ansible.builtin.set_fact:
+    _common__user_removal_check_mode: '{{
+      _common__user_attributes.check_mode
+      |d(common__users_removal_check_mode)
+      |bool
+      |ternary(true, ansible_check_mode) }}'
+    _common__user_state: "{{ _common__user_attributes.state|d('present') }}"
+    _common__user_ssh_authorized_keys: "
+      {%- set _sshkeys = [] -%}
+      {# Extract ssh keys from user attributes #}
+      {%- for key in _common__user_attributes.ssh_authorized_keys|d([]) -%}
+      {%-   set _ = _sshkeys.append(key) -%}
+      {%- endfor -%}
+      {# Extract ssh keys from static global mapping #}
+      {%- for key in common__users_ssh_authorized_keys if key.user == common__user.name -%}
+      {%-   set _ = _sshkeys.append(key) -%}
+      {%- endfor -%}
+      {# Extract ssh keys from static lookup mapping #}
+      {%- if 'common__user_ssh_authorized_keys::'~common__user.name in vars
+            and vars['common__user_ssh_authorized_keys::'~common__user.name] is not string
+            and vars['common__user_ssh_authorized_keys::'~common__user.name] is iterable -%}
+      {%-   for dynamic_key_item in vars['common__user_ssh_authorized_keys::'~common__user.name] -%}
+      {%-     if dynamic_key_item is string %}
+      {%-       if dynamic_key_item in common__users -%}
+      {%-         set _ = _sshkeys.extend( common__users[dynamic_key_item]['ssh_authorized_keys']|d([]) ) -%}
+      {%-       endif %}
+      {%-     elif dynamic_key_item is mapping -%}
+      {%-       set _ = _sshkeys.append( dynamic_key_item ) -%}
+      {%-     endif -%}
+      {%-   endfor -%}
+      {%- endif -%}
+      {{ _sshkeys }}"
+    _common__user_ssh_keys: "
+      {%- set _sshkeys = [] -%}
+      {%- for key in _common__user_attributes.ssh_keys|d([]) -%}
+      {%-   set _ = _sshkeys.append( {'name': key['type']|replace('ssh-','')}|combine(key) ) -%}
+      {%- endfor -%}
+      {{ _sshkeys }}"
+  tags: ['always']
+
+- name: "Compute complex values for user '{{ common__user.name }}'"
+  ansible.builtin.set_fact:
+    _common__user_check_mode: "{{
+      _common__user_attributes.check_mode
+      |d(ansible_check_mode
+        if _common__user_state == 'present'
+        else (common__users_removal_check_mode|bool|ternary(true, ansible_check_mode)
+      ))
+    }}"
+  tags: ['always']
+
+- name: Fail if multiple ssh keys have the same name
+  ansible.builtin.fail:
+    msg: >-
+      Each ssh keys must have an unique name, default key name is generated from 'type' field,
+      please add the yaml field with key 'name' for additional keys of the same type
+  when: _common__user_ssh_keys|map(attribute='name')|unique|list|length != _common__user_ssh_keys|length
+  tags: ['always']
+
+
+###
+### REMOVE
+###
+
+- name: "Get informations to REMOVE user '{{ common__user.name }}'"
+  ansible.builtin.getent:
+    database: passwd
+    key: '{{ common__user.name }}'
+    split: ':'
+  when: _common__user_state != 'present'
+  register: __common__user_absent_getent
+  failed_when: __common__user_absent_getent.msg is defined
+    and __common__user_absent_getent.msg != 'One or more supplied key could not be found in the database.'
+  tags: ['common', 'common-configure', 'common-configure-users', 'common-user']
+
+## SSH
+
+- name: >
+    Remove ssh authorized keys of user '{{ common__user.name }}'
+    (using relative home path){{ _common__user_removal_check_mode|ternary(' (CHECK)','') }}"
+  ansible.builtin.file:
+    path: "{{
+        common__users_ssh_authorized_keys_file
+        |replace('~', getent_passwd[common__user.name][common__users_getent_home_index])
+      }}"
+    state: absent
+  when: common__users_ssh_authorized_keys_file is search('~')
+    and common__user.name in getent_passwd|d({})
+    and _common__user_state != 'present'
+  check_mode: '{{ _common__user_removal_check_mode }}'
+  tags: ['common', 'common-configure', 'common-configure-users', 'common-user']
+
+- name: "List ssh keys to REMOVE for user '{{ common__user.name }}' (using relative home path)"
+  ansible.builtin.find:
+    path: "{{
+        common__users_ssh_config_directory
+        |replace('~', getent_passwd[common__user.name][common__users_getent_home_index])
+      }}"
+    file_type: file
+    patterns: 'id_*'
+  when: common__users_ssh_config_directory is search('~')
+    and common__user.name in getent_passwd|d({})
+    and _common__user_state != 'present'
+  ignore_errors: '{{ ansible_check_mode }}'
+  register: _common__user_ssh_keys_installed
+  tags: ['common', 'common-configure', 'common-configure-users', 'common-user']
+
+- name: >
+    Remove ssh keys of user '{{ common__user.name }}'
+    (using relative home path){{ _common__user_removal_check_mode|ternary(' (CHECK)','') }}"
+  ansible.builtin.file:
+    path: '{{ item }}'
+    state: absent
+  when: _common__user_state != 'present'
+  loop: "{{ _common__user_ssh_keys_installed.files|d([])|map(attribute='path')|list }}"
+  check_mode: '{{ _common__user_removal_check_mode }}'
+  tags: ['common', 'common-configure', 'common-configure-users', 'common-user']
+
+
+## Docker
+# TODO ensure  docker-py  is installed if needed
+- name: "Logout from Docker registries for user '{{ common__user.name }}'"
+  become: '{{ not ansible_check_mode }}'
+  become_user: '{{ common__user.name }}'
+  community.general.docker_login:
+    registry_url: '{{ registry_item.registry }}'
+    state: absent
+  loop: '{{ _common__user_attributes.docker_auth|d([]) }}'
+  loop_control:
+    loop_var: registry_item
+  when: _common__user_state != 'present'
+  tags: ['common', 'common-configure', 'common-configure-users', 'common-user']
+
+
+
+###
+### CREATION
+###
+
+## group entity
+
+- name: >
+    Create user '{{ common__user.name }}' primary group
+    (only effective for sources {{ common__users_create_full_sources_names|join(',') }}){{
+    _common__user_check_mode|ternary(' (CHECK)','') }}
+  ansible.builtin.group:
+    name: '{{ common__user.group|d(common__user.name) }}'
+    gid: '{{ common__user.gid|d(omit) }}'
+    system: '{{ _common__user_attributes.system|d(false) }}'
+    local: '{{ common__libuser_supported|bool }}'
+    state: present
+  when: _common__user_attributes.source in common__users_create_full_sources_names
+    and _common__user_state == 'present'
+    and (common__user.group is defined or common__user.gid is defined)
+  check_mode: '{{ _common__user_check_mode }}'
+  tags: ['common', 'common-configure', 'common-configure-users', 'common-user']
+
+## user entity
+
+- name: >
+    Ensure user '{{ common__user.name }}'
+    (only effective for sources {{ common__users_create_full_sources_names|join(',') }}){{
+    _common__user_check_mode|ternary(' (CHECK)','') }}
+  ansible.builtin.user:
+    name: '{{ common__user.name }}'
+    group: '{{ _common__user_attributes.group|d(common__user.name if common__user.gid is defined else omit) }}'
+    uid: '{{ _common__user_attributes.uid|d(omit) }}'
+    password: '{{ _common__user_attributes.password|d(omit) }}'
+    expires: '{{ _common__user_attributes.expires|d(omit) }}'
+    home: '{{ _common__user_attributes.home|d(omit) }}'
+    create_home: '{{ _common__user_attributes.create_home|d(true) }}'
+    move_home: true
+    remove: '{{ _common__user_attributes.remove|d(common__users_remove_home) }}'
+    shell: '{{ _common__user_attributes.shell|d(omit) }}'
+    system: '{{ _common__user_attributes.system|d(false) }}'
+    comment: '{{ _common__user_attributes.comment|d(omit) }}'
+    local: '{{ common__libuser_supported|bool }}'
+    state: '{{ _common__user_state }}'
+  when: _common__user_attributes.source in common__users_create_full_sources_names
+  check_mode: '{{ _common__user_check_mode }}'
+  tags: ['common', 'common-configure', 'common-configure-users', 'common-user']
+
+- name: >
+    Remove user '{{ common__user.name }}' primary group
+    (only effective for sources {{ common__users_create_full_sources_names|join(',') }}){{
+    _common__user_removal_check_mode|ternary(' (CHECK)','') }}
+  ansible.builtin.group:
+    name: '{{ common__user.group|d(common__user.name) }}'
+    local: '{{ common__libuser_supported|bool }}'
+    state: absent
+  when: _common__user_attributes.source in common__users_create_full_sources_names
+    and _common__user_state != 'present'
+    and (common__user.group is defined or common__user.gid is defined)
+  check_mode: '{{ _common__user_removal_check_mode }}'
+  tags: ['common', 'common-configure', 'common-configure-users', 'common-user']
+
+- name: "Get informations to CREATE user '{{ common__user.name }}'"
+  ansible.builtin.getent:
+    database: passwd
+    key: '{{ common__user.name }}'
+    split: ':'
+  when: _common__user_state == 'present'
+  register: _common__user_present_getent
+  ignore_errors: true
+  failed_when: _common__user_present_getent.msg is defined
+    and (
+      not ansible_check_mode
+      or (
+        ansible_check_mode
+        and _common__user_present_getent.msg != 'One or more supplied key could not be found in the database.'
+      )
+    )
+  tags: ['common', 'common-configure', 'common-configure-users', 'common-user']
+
+- name: "Check if user '{{ common__user.name }}' home agree with getent one"
+  ansible.builtin.fail:
+    msg: >
+      User '{{ common__user.name }}' home from getent
+      '{{ getent_passwd[common__user.name][common__users_getent_home_index] }}'
+      differ from ansible inventory one '{{ _common__user_attributes.home }}'
+  when: _common__user_attributes.source in common__users_create_only_home_sources_names
+    and common__user.name in getent_passwd|d({})
+    and getent_passwd[common__user.name][common__users_getent_home_index] != _common__user_attributes.home
+  tags: ['common', 'common-configure', 'common-configure-users', 'common-user']
+
+- name: >
+    Ensure home directory for user '{{ common__user.name }}'
+    (only effective for {{ common__users_create_only_home_sources_names|join(',') }} sources)"
+  ansible.builtin.user:
+    name: '{{ common__user.name }}'
+    uid: '{{ _common__user_attributes.uid }}'
+    home: '{{ _common__user_attributes.home }}'
+    create_home: true
+    move_home: true
+    shell: '{{ _common__user_attributes.shell }}'
+    system: '{{ _common__user_attributes.system|bool }}'
+    state: present
+  when: _common__user_attributes.source in common__users_create_only_home_sources_names
+    and _common__user_state == 'present'
+    and common__user.name in getent_passwd|d({})
+    and getent_passwd[common__user.name][common__users_getent_home_index] == _common__user_attributes.home
+  tags: ['common', 'common-configure', 'common-configure-users', 'common-user']
+
+## SSH
+
+- name: "Ensure user '{{ common__user.name }}' ssh keys directory exists"
+  ansible.builtin.file:
+    path: "{{
+        common__users_ssh_config_directory
+        |replace('~', getent_passwd[common__user.name][common__users_getent_home_index])
+      }}"
+    owner: '{{ common__user.name }}'
+    mode: '{{ common__users_ssh_config_directory_mode }}'
+    state: directory
+  when: _common__user_state == 'present'
+    and common__user.name in getent_passwd|d({})
+  check_mode: '{{ _common__user_attributes.check_mode|d(ansible_check_mode) }}'
+  tags: ['common', 'common-configure', 'common-configure-users', 'common-user']
+
+- name: "Deploy SSH authorized keys for user '{{ common__user.name }}' (using relative home path)"
+  ansible.builtin.template:
+    src: user/authorized_keys.j2
+    dest: "{{
+        common__users_ssh_authorized_keys_file
+        |replace('~', getent_passwd[common__user.name][common__users_getent_home_index])
+      }}"
+    owner: '{{ common__user.name }}'
+    group: '{{ _common__user_attributes.group|d(omit) }}'
+    mode: '{{ common__users_ssh_authorized_keys_file_mode }}'
+  when: common__users_ssh_authorized_keys_file is search('~')
+    and common__user.name in getent_passwd|d({})
+    and _common__user_state == 'present'
+  tags: ['common', 'common-configure', 'common-configure-users', 'common-user']
+
+- name: "List current ssh keys for user '{{ common__user.name }}' (using relative home path)"
+  ansible.builtin.find:
+    path: "{{
+        common__users_ssh_config_directory
+        |replace('~', getent_passwd[common__user.name][common__users_getent_home_index])
+      }}"
+    file_type: file
+    patterns: 'id_*'
+  when: common__users_ssh_config_directory is search('~')
+    and common__user.name in getent_passwd|d({})
+    and _common__user_state == 'present'
+  ignore_errors: '{{ ansible_check_mode }}'
+  register: _common__user_ssh_keys_installed
+  tags: ['common', 'common-configure', 'common-configure-users', 'common-user']
+
+# TODO
+- name: "Remove unconsistent ssh keys of user '{{ common__user.name }}' (using relative home path)"
+  ansible.builtin.file:
+    path: '{{ item }}'
+    state: absent
+  when: _common__user_state == 'present'
+  loop: "{{
+      _common__user_ssh_keys_installed.files
+      |d([])|map(attribute='path')
+      |reject('match', '.*/id_('~_common__user_ssh_keys|map(attribute='name')|join('|')~')(\\.pub)?$')
+      |list
+    }}"
+  tags: ['common', 'common-configure', 'common-configure-users', 'common-user']
+
+- name: "Create missing ssh keys for user '{{ common__user.name }}' (using relative home path)"
+  ansible.builtin.copy:
+    dest:
+      "{{ common__users_ssh_config_directory
+        |replace('~', getent_passwd[common__user.name][common__users_getent_home_index]) }}/\
+      id_{{ item[0]['name'] }}{{ (item[1] == 'public')|ternary('.pub', '') }}"
+    owner: '{{ common__user.name }}'
+    group: '{{ _common__user_attributes.group|d(omit) }}'
+    mode: "{{ vars['common__users_'~item[1]~'_keys_file_mode'] }}"
+    content: >
+      {%- if item[1] == 'public' %}{{ item[0]['type'] }} {% endif -%}
+      {{ item[0][item[1]] }}
+      {%- if item[1] == 'public' and item[0]['comment'] is defined %} {{ item[0]['comment'] }}{% endif -%}
+  loop: "{{ _common__user_ssh_keys|product(['public','private']) }}"
+  when: _common__user_state == 'present'
+  tags: ['common', 'common-configure', 'common-configure-users', 'common-user']
+
+## Docker
+
+- name: "Sign into Docker registries for user '{{ common__user.name }}'"
+  become: '{{ not ansible_check_mode }}'
+  become_user: '{{ common__user.name }}'
+  community.general.docker_login:
+    registry_url: '{{ registry_item.registry }}'
+    username: '{{ registry_item.username }}'
+    password: '{{ registry_item.password }}'
+    email: '{{ registry_item.email|d(omit) }}'
+    reauthorize: '{{ registry_item.reauthorize|d(omit) }}'
+    state: "{{ registry_item.state|d('present') }}"
+  loop: '{{ _common__user_attributes.docker_auth|d([]) }}'
+  loop_control:
+    loop_var: registry_item
+  when: _common__user_state == 'present'
+  tags: ['common', 'common-configure', 'common-configure-users', 'common-user']

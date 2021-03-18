@@ -1,0 +1,27 @@
+{{ ansible_managed|comment(decoration='# ') }}
+
+[import]
+login_defs = {{ common__libuser_login_defs_configuraton_file }}
+default_useradd = {{ common__libuser_useradd_configuraton_file }}
+
+[defaults]
+crypt_style = {{ common__libuser_crypt_style }}
+modules = {{ common__libuser_modules|join(' ') }}
+create_modules = {{ common__libuser_create_modules|join(' ') }}
+
+[userdefaults]
+{% for key, value in common__libuser_userdefaults|dictsort %}
+{{   key }} = {{ value }}
+{% endfor %}
+
+[groupdefaults]
+{% for key, value in common__libuser_groupdefaults|dictsort %}
+{{   key }} = {{ value }}
+{% endfor %}
+
+{% for module,configs in common__libuser_modules_configs|dictsort %}
+[{{ module }}]
+{%   for key,value in configs|dictsort %}
+{{     key }} = {{ value }}
+{%   endfor %}
+{% endfor %}

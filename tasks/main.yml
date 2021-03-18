@@ -1,0 +1,52 @@
+---
+
+# tasks file for common
+
+- name: Include the OS specific variables
+  ansible.builtin.include_vars: "{{ lookup('first_found', params) }}"
+  vars:
+    params:
+      files:
+        - '{{ ansible_distribution }}-{{ ansible_distribution_version }}.yml'
+        - '{{ ansible_distribution }}.yml'
+        - '{{ ansible_os_family }}.yml'
+        - defaults.yml
+      paths:
+        - vars/
+  tags: ['always']
+
+- name: Importing initialization tasks
+  ansible.builtin.import_tasks: init.yml
+  tags: ['always']
+
+- name: Importing installation tasks
+  ansible.builtin.import_tasks: install.yml
+  tags: ['common', 'common-install']
+
+- name: Importing configuration tasks
+  ansible.builtin.import_tasks: configure.yml
+  tags: ['common', 'common-configure']
+
+- name: Importing hosts configuration tasks
+  ansible.builtin.import_tasks: configure-hosts.yml
+  tags: ['common', 'common-configure', 'common-configure-hosts']
+
+- name: Importing timezone configuration tasks
+  ansible.builtin.import_tasks: configure-timezone.yml
+  tags: ['common', 'common-configure', 'common-configure-timezone']
+
+- name: Importing packages installation tasks
+  ansible.builtin.import_tasks: configure-packages.yml
+  tags: ['common', 'common-configure', 'common-configure-packages']
+
+- name: Importing users groups configuration tasks
+  ansible.builtin.import_tasks: configure-groups.yml
+  tags: ['common', 'common-configure', 'common-configure-groups']
+
+- name: Importing users configuration tasks
+  ansible.builtin.import_tasks: configure-users.yml
+  tags: ['common', 'common-configure', 'common-configure-users']
+
+- name: Importing files configuration tasks
+  ansible.builtin.import_tasks: configure-files.yml
+  tags: ['common', 'common-configure', 'common-configure-files']

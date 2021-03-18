@@ -1,0 +1,44 @@
+---
+
+- name: Ensure packages for Debian
+  ansible.builtin.apt:
+    name: '{{ item.value }}'
+    autoremove: true
+    purge: true
+    state: '{{ item.key }}'
+  when: ansible_os_family == 'Debian'
+  loop: "\
+    {% set names_per_state = {} -%}
+    {% for name,spec in common__packages|dictsort -%}
+    {%   if spec.state|d('present') not in names_per_state -%}
+    {%     set _ = names_per_state.update({spec.state|d('present'): []}) -%}
+    {%   endif -%}
+    {%   set _ = names_per_state[spec.state|d('present')].append(name) -%}
+    {% endfor -%}
+    {{ names_per_state|dict2items }}"
+
+- name: Install packages for RedHat
+  ansible.builtin.yum:
+    name: "\
+      {% set names = [] -%}
+      {% for name,spec in common__packages|dict2items -%}
+      {%   if spec.state|d('present') == 'present' -%}
+      {%     set _ = names.append(name) -%}
+      {%   endif -%}
+      {% endfor -%}
+      {{ names }}"
+    state: present
+  when: ansible_os_family == 'RedHat'
+
+- name: Remove packages
+  ansible.builtin.package:
+    name: "\
+      {% set names = [] -%}
+      {% for name,spec in common__packages|dictsort -%}
+      {%   if spec.state|d('present') != 'present' -%}
+      {%     set _ = names.append(name) -%}
+      {%   endif -%}
+      {% endfor -%}
+      {{ names }}"
+    state: absent
+  when: ansible_os_family == 'RedHat'

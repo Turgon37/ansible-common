@@ -1,0 +1,193 @@
+---
+# defaults file for common
+
+
+### INSTALL CONFIGURATION
+# ---------------------------------------
+# List of required package names
+common__required_packages_names: []
+
+# Say if the local users utilities are supported or not
+common__libuser_supported: false
+
+common__libuser_login_defs_configuraton_file: /etc/login.defs
+
+common__libuser_useradd_configuraton_file: /etc/default/useradd
+
+
+### LIBUSER CONFIGURATION
+# ---------------------------------------
+# Path the the libuser configuration file
+common__libuser_configuraton_file: /etc/libuser.conf
+
+# The  algorithm to use for password encryption when creating new passwords
+common__libuser_crypt_style: sha512
+
+common__libuser_userdefaults:
+  LU_USERNAME: '%n'
+  LU_GIDNUMBER: '%u'
+
+common__libuser_groupdefaults:
+  LU_GROUPNAME: '%n'
+
+# A list of module names to use when not creating user or group entries
+common__libuser_modules:
+  - files
+  - shadow
+
+# A list of module names to use when creating user or group entries
+common__libuser_create_modules: '{{ common__libuser_modules }}'
+
+common__libuser_modules_configs:
+  files: {}
+  shadow: {}
+  ldap: {}
+  sasl: {}
+
+
+### USER CONFIGURATION
+# ---------------------------------------
+# Template with defaults values for user entries that will be deployed
+common__users_template:
+  docker_auth: []
+  # ssh_authorized_keys:
+  #  - type: ssh-ed25519
+  #    key: xxxxxxxx
+  #    comment: laptop1
+  ssh_authorized_keys: []
+  # ssh_keys:
+  #  - type: ssh-ed25519
+  #    key: xxxxxxxx
+  #    comment: laptop1
+  ssh_keys: []
+  system: false
+  source: local
+
+# Users entries which have 'source' value in the following list
+# will be fully created by this role, usually it is local sources
+common__users_create_full_sources_names:
+  - local
+
+# User from theses source will not be created, only their homes directory will be
+# and their home folder will only be created if the user entry is available from getent db
+#  and the home directory path correspond to the ansible inventory value
+common__users_create_only_home_sources_names:
+  - LDAP
+
+# Set to true to use ansible_check_mode for users removal action.
+# Otherwise, with false, the users that have to be removed will not be removed users
+common__users_removal_check_mode: true
+
+# Set to true to empty home when user are removed
+common__users_remove_home: false
+
+# Index number (start from 0) for home directory value in getent
+# Each entries follow the form [ "*", "UID", "GID", "GECOS", "/home/users/name", "/bin/bash"
+common__users_getent_home_index: 4
+
+## SSH
+common__users_ssh_config_directory: '~/.ssh'
+
+# The file mode of ssh configuration directories
+common__users_ssh_config_directory_mode: '0700'
+
+# The path to the ssh keys file
+common__users_ssh_authorized_keys_file: '{{ common__users_ssh_config_directory }}/authorized_keys'
+
+# The file mode of ssh keys file
+common__users_ssh_authorized_keys_file_mode: 0600
+
+# The mode of file containing public keys
+common__users_public_keys_file_mode: '0644'
+
+# The mode of file containing private keys
+common__users_private_keys_file_mode: '0600'
+
+## SSH authorized keys
+# List of static users ssh authorized keys, this dict can be use to append ssh authorized keys to user
+# without using the 'ssh_authorized_keys' item in users__users referentiel.
+# Each item of this list must be a dict with sh key with a 'user' item which contains the username
+#
+#  common__users_ssh_authorized_keys:
+#    - user: root
+#      type: ssh-ed25519
+#      key: XXX
+#      comment: xxxx
+#      options: 'from="10.0.0.1"'
+common__users_ssh_authorized_keys: []
+
+# In addition to the global dict above, you can append ssh authorized keys for a specific user
+# You must create a variable with the name that follow the pattern 'users__ssh_authorized_keys::' + username
+# which contains some of the following items:
+#   * an another user's username => this will append all another user's ssh keys to authorized keys
+#   * static ssh keys mapping => this will append this ssh keys only for the autorized keys
+# for example if you have an user foo and want to append the bar's ssh keys in foo's auhorized keys declare an array
+#  users__ssh_authorized_keys::foo: [ 'bar' ]
+
+# hosts
+# The template to use to generate default IPv4 entry
+common__hosts_ipv4_address_default: '{{ ansible_default_ipv4.address|d(omit) }}'
+
+# If set to true, an entry for `ansible_hostname`, bound to the host's default IPv6 address is added added.
+common__hosts_ipv6_default: '{{ ansible_default_ipv6.items()|length > 0 }}'
+
+#
+# common__hosts_global:
+#   - address: 127.1.1.1
+#     hostname: required-hostname
+#     aliases: ['optional alias']
+#     comment: optionnal commment
+#
+common__hosts_global: []
+common__hosts_group: []
+common__hosts_host: []
+common__hosts: '{{
+    common__hosts_global
+    |union(common__hosts_group)
+    |union(common__hosts_host)
+  }}'
+
+# timezone
+common__timezone: Etc/UTC
+
+# groups
+common__groups_global: {}
+common__groups_group: {}
+common__groups_host: {}
+common__groups: '{{
+    common__groups_global
+    |combine(common__groups_group)
+    |combine(common__groups_host)
+  }}'
+
+# users
+common__users_global: {}
+common__users_group: {}
+common__users_host: {}
+common__users: '{{
+    common__users_global
+    |combine(common__users_group)
+    |combine(common__users_host)
+  }}'
+
+# files
+common__files_global: {}
+common__files_group: {}
+common__files_host: {}
+common__files: '{{
+    common__files_global
+    |combine(common__files_group)
+    |combine(common__files_host)
+  }}'
+
+# packages
+common__packages_default: {}
+common__packages_global: {}
+common__packages_group: {}
+common__packages_host: {}
+common__packages: '{{
+    common__packages_default
+    |combine(common__packages_global)
+    |combine(common__packages_group)
+    |combine(common__packages_host)
+  }}'

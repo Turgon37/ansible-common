@@ -1,0 +1,9 @@
+---
+
+# handlers file for common
+
+- name: common-gather-facts
+  ansible.builtin.setup:
+    gather_subset:
+      - '!all'
+      - min
