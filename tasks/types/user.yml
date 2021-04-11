@@ -77,12 +77,12 @@
 - name: "Compute complex values for user '{{ common__user.name }}'"
   ansible.builtin.set_fact:
     _common__user_check_mode: "{{
-      _common__user_attributes.check_mode
-      |d(ansible_check_mode
-        if _common__user_state == 'present'
-        else (common__users_removal_check_mode|bool|ternary(true, ansible_check_mode)
-      ))
-    }}"
+        _common__user_attributes.check_mode
+        |d(ansible_check_mode
+          if _common__user_state == 'present'
+          else (common__users_removal_check_mode|bool|ternary(true, ansible_check_mode)
+        ))
+      }}"
   tags: ['always']
 
 - name: Fail if multiple ssh keys have the same name
