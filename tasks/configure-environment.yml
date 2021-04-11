@@ -1,0 +1,7 @@
+---
+
+- name: Configure system environment variables
+  ansible.builtin.template:
+    src: environment.j2
+    dest: '{{ common__environment_file }}'
+    mode: 0644

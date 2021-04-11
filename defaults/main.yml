@@ -133,6 +133,9 @@ common__hosts_ipv4_address_default: '{{ ansible_default_ipv4.address|d(omit) }}'
 # If set to true, an entry for `ansible_hostname`, bound to the host's default IPv6 address is added.
 common__hosts_ipv6_address_default: '{{ ansible_default_ipv6.address|d(omit) }}'
 
+# path to system environment source file
+common__environment_file: /etc/environment
+
 #
 # common__hosts_global:
 #   - address: 127.1.1.1
@@ -180,6 +183,18 @@ common__files: '{{
     common__files_global
     |combine(common__files_group)
     |combine(common__files_host)
+  }}'
+
+# environment
+common__environment_variables_default: {}
+common__environment_variables_global: {}
+common__environment_variables_group: {}
+common__environment_variables_host: {}
+common__environment_variables: '{{
+    common__environment_variables_default
+    |combine(common__environment_variables_global)
+    |combine(common__environment_variables_group)
+    |combine(common__environment_variables_host)
   }}'
 
 # packages

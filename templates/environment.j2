@@ -1,0 +1,3 @@
+{% for name, value in common__environment_variables|dictsort %}
+{{   name }}={{ value|quote }}
+{% endfor %}

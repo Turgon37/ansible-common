@@ -35,6 +35,10 @@
   ansible.builtin.import_tasks: configure-timezone.yml
   tags: ['common', 'common-configure', 'common-configure-timezone']
 
+- name: Importing timezone configuration tasks
+  ansible.builtin.import_tasks: configure-environment.yml
+  tags: ['common', 'common-configure', 'common-configure-environment']
+
 - name: Importing packages installation tasks
   ansible.builtin.import_tasks: configure-packages.yml
   tags: ['common', 'common-configure', 'common-configure-packages']
