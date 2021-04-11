@@ -193,14 +193,26 @@
 
 ## user entity
 
+- name: "Get all local groups for user '{{ common__user.name }}'"
+  ansible.builtin.getent:
+    database: group
+    split: ':'
+  when: getent_group is not defined
+  ignore_errors: true
+
 - name: >
     Ensure user '{{ common__user.name }}'
     (only effective for sources {{ common__users_create_full_sources_names|join(',') }}){{
     _common__user_check_mode|ternary(' (CHECK)','') }}
   ansible.builtin.user:
     name: '{{ common__user.name }}'
-    group: '{{ _common__user_attributes.group|d(common__user.name if common__user.gid is defined else omit) }}'
     uid: '{{ _common__user_attributes.uid|d(omit) }}'
+    group: '{{ _common__user_attributes.group|d(common__user.name if common__user.gid is defined else omit) }}'
+    groups: '{{
+        _common__user_attributes.groups
+        |union(_common__user_attributes.optional_groups|intersect((getent_group|d({})).keys()))
+      }}'
+    append: false
     password: '{{ _common__user_attributes.password|d(omit) }}'
     expires: '{{ _common__user_attributes.expires|d(omit) }}'
     home: '{{ _common__user_attributes.home|d(omit) }}'

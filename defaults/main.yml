@@ -49,6 +49,8 @@ common__libuser_modules_configs:
 # ---------------------------------------
 # Template with defaults values for user entries that will be deployed
 common__users_template:
+  groups: []
+  optional_groups: []
   docker_auth: []
   # ssh_authorized_keys:
   #  - type: ssh-ed25519
