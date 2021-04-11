@@ -130,8 +130,8 @@ common__users_ssh_authorized_keys: []
 # The template to use to generate default IPv4 entry
 common__hosts_ipv4_address_default: '{{ ansible_default_ipv4.address|d(omit) }}'
 
-# If set to true, an entry for `ansible_hostname`, bound to the host's default IPv6 address is added added.
-common__hosts_ipv6_default: '{{ ansible_default_ipv6.items()|length > 0 }}'
+# If set to true, an entry for `ansible_hostname`, bound to the host's default IPv6 address is added.
+common__hosts_ipv6_address_default: '{{ ansible_default_ipv6.address|d(omit) }}'
 
 #
 # common__hosts_global:

@@ -1,18 +1,23 @@
 {{ ansible_managed|comment(decoration='# ') }}
 #<ip-address>   <hostname.domain.org>   <hostname>
+# IPv4 entries
 127.0.0.1  localhost.localdomain  localhost localhost4 localhost4.localdomain4
 
 {% if common__hosts_ipv4_address_default != omit %}
 {{   common__hosts_ipv4_address_default }}  {{ ansible_fqdn }} {{ ansible_hostname }}
 {% endif %}
 
-{% if common__hosts_ipv6_default %}
-# Basic IPv6 entries
+# IPv6 entries
 ::1      localhost.localdomain   localhost localhost6.localdomain6  localhost6  ip6-localhost  ip6-loopback
+
+{% if ansible_all_ipv6_addresses|length %}
 fe00::0  ip6-localnet
 ff00::0  ip6-mcastprefix
 ff02::1  ip6-allnodes
 ff02::2  ip6-allrouters
+{% endif %}
+{% if common__hosts_ipv6_address_default != omit %}
+{{   common__hosts_ipv6_address_default }}  {{ ansible_fqdn }} {{ ansible_hostname }}
 {% endif %}
 
 {% for entry in common__hosts|list %}
