@@ -18,7 +18,7 @@ common__libuser_useradd_configuraton_file: /etc/default/useradd
 ### LIBUSER CONFIGURATION
 # ---------------------------------------
 # Path the the libuser configuration file
-common__libuser_configuraton_file: /etc/libuser.conf
+common__libuser_configuration_file: /etc/libuser.conf
 
 # The  algorithm to use for password encryption when creating new passwords
 common__libuser_crypt_style: sha512
